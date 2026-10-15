@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="pt-BR" class="locked">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Apneia+">
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<!-- fonte parecida com a do Bloco de Notas, usada só na imagem JPG (fica guardada para uso sem internet) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400&display=swap">
+<title>Apneia+</title>
+<style>
+:root {
+  --bg: #F2F2F7; --card: #FFFFFF; --text: #1C1C1E; --muted: #6C6C70; --line: #D8D8DC;
+  --accent: #2196F3; --accent-text: #FFFFFF; --soft: #E3F1FD;
+  --gold: #FFC107; --gold-text: #3B2C00;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #000000; --card: #1C1C1E; --text: #F2F2F7; --muted: #98989F; --line: #38383A;
+          --accent: #2196F3; --soft: #10273A; }
+}
+*, *::before, *::after { box-sizing: inherit; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { padding: 0 16px 32px; max-width: 640px; margin: 0 auto; }
+body.noscroll { overflow: hidden; }
+button, select, input { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+header { display: flex; align-items: center; justify-content: space-between; padding: 14px 0 10px; }
+header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.hbtns { display: flex; gap: 6px; }
+.link { background: none; border: none; color: var(--accent); font-size: 17px; padding: 8px 0 8px 12px; }
+
+.big { display: block; width: 100%; border-radius: 14px; padding: 16px; font-size: 18px; font-weight: 600;
+       border: none; margin-bottom: 10px; }
+.big.primary { background: var(--accent); color: var(--accent-text); padding: 20px 16px; font-size: 20px; }
+.big.secondary { background: var(--card); color: var(--accent); }
+.big.small { padding: 12px 16px; font-size: 16px; }
+.big:disabled { opacity: 0.45; }
+
+.filters { display: flex; gap: 10px; margin: 4px 0 12px; align-items: flex-end; }
+.filters label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.filters label.narrow { flex: 0 0 96px; }
+.filters select, .filters input { appearance: none; -webkit-appearance: none; background: var(--card); border: none;
+                  border-radius: 10px; padding: 11px 12px; font-size: 16px; width: 100%; color: var(--text); }
+.filters .mini { flex: none; border: none; border-radius: 10px; padding: 11px 12px; font-size: 15px; font-weight: 600;
+                 background: var(--soft); color: var(--accent); }
+
+.switches { background: var(--card); border-radius: 10px; margin: 0 0 14px; }
+.sw-row { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font-size: 15px; }
+.sw-row + .sw-row { border-top: 1px solid var(--line); }
+.sw-row .txt { flex: 1; }
+.sw-row .txt small { display: block; color: var(--muted); font-size: 12px; }
+.sw-row select { appearance: none; -webkit-appearance: none; background: var(--bg); border: none; border-radius: 8px;
+                 padding: 7px 10px; font-size: 15px; }
+.sw-row select:disabled { opacity: 0.4; }
+.switch { position: relative; width: 51px; height: 31px; flex: none; }
+.switch input { opacity: 0; width: 100%; height: 100%; margin: 0; position: absolute; cursor: pointer; z-index: 1; }
+.switch span { position: absolute; inset: 0; background: var(--line); border-radius: 31px; transition: background 0.2s; }
+.switch span::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+                      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); transition: transform 0.2s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(20px); }
+.switch input:focus-visible + span { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.tabs { display: flex; background: var(--card); border-radius: 10px; padding: 3px; margin: 2px 0 14px; }
+.tabs button { flex: 1; border: none; background: none; border-radius: 8px; padding: 9px 4px; font-size: 15px;
+               font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); }
+
+#query { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 14px;
+         padding: 10px; margin: 6px 0 14px; }
+#qimg { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; flex: none; background: var(--line); }
+#query.noimg #qimg { display: none; }
+#status { margin: 0; font-size: 15px; line-height: 1.35; }
+#status small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+/* resultado */
+.res { background: var(--card); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+.res.first { box-shadow: 0 0 0 2px var(--accent); }
+.pics { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; position: relative;
+        background: var(--line); }
+.pics::-webkit-scrollbar { display: none; }
+.pics img { flex: 0 0 100%; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; scroll-snap-align: center; display: block; }
+.picwrap { position: relative; }
+.picwrap .count { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.6); color: #fff; font-size: 12px;
+                  font-weight: 600; padding: 3px 8px; border-radius: 10px; pointer-events: none; }
+.picbar { display: flex; align-items: center; gap: 8px; padding: 6px 8px 0 14px; min-height: 40px; }
+.picbar .hint { flex: 1; font-size: 13px; color: var(--muted); }
+.dl { flex: none; width: 40px; height: 36px; border: none; border-radius: 10px; background: var(--soft); color: var(--accent);
+      display: flex; align-items: center; justify-content: center; }
+.dl svg { width: 22px; height: 22px; }
+.res .meta { padding: 4px 14px 4px; }
+.res .top { display: flex; align-items: center; gap: 10px; }
+.res .pos { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.res .insc { font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+             user-select: all; -webkit-user-select: all; }
+.res .top .sp { flex: 1; }
+.own { flex: none; border: none; border-radius: 9px; padding: 6px 11px; background: var(--gold); color: var(--gold-text);
+       font-weight: 800; font-size: 15px; font-variant-numeric: tabular-nums; }
+.res .line { font-size: 15px; margin-top: 3px; }
+.res .line.muted { color: var(--muted); font-size: 14px; }
+.res .ql { font-size: 17px; font-weight: 600; margin-top: 4px; }
+.areas { display: flex; gap: 8px; margin: 8px 0 4px; }
+.areas div { flex: 1; background: var(--bg); border-radius: 10px; padding: 7px 10px; font-size: 13px; color: var(--muted); }
+.areas b { display: block; font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 14px 14px; }
+.acts button { border: none; border-radius: 10px; padding: 11px 8px; font-size: 15px; font-weight: 600;
+               background: var(--soft); color: var(--accent); }
+.acts button.neg { grid-column: 1; }
+#more { display: inline-block; border: none; border-radius: 12px; padding: 12px 22px; font-size: 17px; font-weight: 700;
+        background: var(--accent); color: var(--accent-text); margin: 2px 0 16px; }
+
+.empty { background: var(--card); border-radius: 14px; padding: 18px; line-height: 1.45; font-size: 16px; }
+.empty h2 { font-size: 18px; margin: 0 0 8px; }
+.empty ol { padding-left: 20px; margin: 8px 0 14px; }
+
+/* janelas sobrepostas (com X) */
+.ov { position: fixed; inset: 0; background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+.ovbar { flex: none; display: flex; align-items: center; gap: 10px; padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 10px 16px;
+         background: var(--bg); border-bottom: 1px solid var(--line); touch-action: pan-y; }
+.ovbar h2 { flex: 1; font-size: 18px; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ovbar .x { flex: none; width: 40px; height: 40px; border: none; border-radius: 50%; background: var(--card); color: var(--text);
+            display: flex; align-items: center; justify-content: center; }
+.ovbar .x svg { width: 20px; height: 20px; }
+.ovbody { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+          padding: 14px 16px calc(24px + env(safe-area-inset-bottom, 0px)); max-width: 640px; width: 100%; margin: 0 auto; }
+.ovbody.full { padding: 0; max-width: none; display: flex; flex-direction: column; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--card);
+       padding: 12px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.group > .row:first-child { border-radius: 12px 12px 0 0; }
+.group > .row:last-child { border-radius: 0 0 12px 12px; border-bottom: none; }
+.group > .row:only-child { border-radius: 12px; }
+.row small { display: block; color: var(--muted); font-size: 13px; }
+.row button { background: none; border: none; color: #D0342C; font-size: 15px; padding: 6px 0 6px 8px; }
+.group { margin-bottom: 16px; }
+.gtitle { font-size: 13px; color: var(--muted); margin: 0 2px 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+.note { font-size: 13px; color: var(--muted); line-height: 1.4; margin: 6px 2px 14px; }
+
+/* comparar */
+.cmp img.q { display: block; width: 100%; max-height: 30vh; object-fit: contain; background: var(--card); border-radius: 10px; }
+.cmp .pics { border-radius: 10px; max-height: 34vh; }
+.cmp .pics img { aspect-ratio: auto; height: 34vh; object-fit: contain; background: var(--card); }
+.cmp .lbl { font-size: 13px; color: var(--muted); margin: 10px 2px 4px; }
+.nav { display: flex; gap: 8px; margin-top: 12px; }
+.nav button { flex: 1; border: none; border-radius: 10px; padding: 12px 6px; font-weight: 600; font-size: 15px;
+              background: var(--card); color: var(--accent); }
+.nav button.main { background: var(--accent); color: var(--accent-text); }
+.nav button:disabled { opacity: 0.4; }
+
+/* dados do imóvel (dono, informações) */
+.facts { background: var(--card); border-radius: 12px; padding: 10px 14px; margin: 0 0 14px; font-size: 15px; line-height: 1.55; }
+.facts b { font-weight: 700; }
+.facts .pics { margin: -10px -14px 10px; }
+.ownhead { font-size: 17px; font-weight: 700; line-height: 1.5; margin: 0 2px 12px; }
+.ctitle { font-size: 18px; font-weight: 800; margin: 18px 2px 8px; }
+
+/* todas as fotos */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile { position: relative; background: var(--card); border-radius: 10px; overflow: hidden; }
+.tile img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--line); }
+.tile .cap { font-size: 12px; padding: 5px 44px 6px 8px; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.tile .cap small { display: block; color: var(--muted); }
+.tile .info { position: absolute; right: 6px; bottom: 6px; width: 34px; height: 34px; border: none; border-radius: 50%;
+              background: var(--accent); color: var(--accent-text); font-weight: 800; font-size: 17px; font-style: italic;
+              font-family: Georgia, serif; }
+
+/* página da prefeitura */
+.negbar { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--card); font-size: 14px; }
+.negbar span { flex: 1; line-height: 1.35; }
+.negbar button { flex: none; border: none; border-radius: 10px; padding: 9px 12px; font-weight: 600;
+                 background: var(--accent); color: var(--accent-text); }
+.ovbody iframe { flex: 1; width: 100%; border: none; background: #fff; }
+
+#toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+         background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 20px; font-size: 15px; z-index: 300;
+         opacity: 0; transition: opacity 0.2s; pointer-events: none; max-width: 90vw; text-align: center; }
+#toast.on { opacity: 1; }
+#toTop { position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: 52px; height: 52px;
+         border: none; border-radius: 14px; background: var(--accent); color: var(--accent-text);
+         display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+         opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 20; }
+#toTop.on { opacity: 1; transform: none; pointer-events: auto; }
+#toTop svg { width: 26px; height: 26px; }
+#floatQ { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 16px; z-index: 20; padding: 0;
+          border: 2px solid var(--accent); border-radius: 12px; overflow: hidden; background: var(--card);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.35); opacity: 0; transform: translateY(-12px); pointer-events: none;
+          transition: opacity 0.2s, transform 0.2s; }
+#floatQ.on { opacity: 1; transform: none; pointer-events: auto; }
+#floatQ img { display: block; width: 36vw; max-width: 170px; height: 112px; object-fit: cover; }
+#floatQ.big img { width: 74vw; max-width: 420px; height: 42vh; object-fit: contain; background: #000; }
+#floatQ span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 11px; text-align: center; padding: 2px 4px;
+               background: rgba(0,0,0,0.55); color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  #toast, #toTop, #floatQ, #floatQ img, .switch span, .switch span::after { transition: none; }
+}
+
+/* ---------- bloqueio */
+html.locked header, html.locked #main, html.locked #welcome, html.locked #floatQ, html.locked #toTop, html.locked .ov,
+html.shield header, html.shield #main, html.shield #welcome, html.shield #floatQ, html.shield #toTop, html.shield .ov {
+  visibility: hidden !important; }
+html.locked, html.locked body, html.shield, html.shield body { background: #000 !important; }
+#shield { position: fixed; inset: -50px; z-index: 400; display: none; background: #000; }
+html.shield #shield { display: block; }
+#lock { position: fixed; inset: 0; z-index: 350; display: none; overflow-y: auto; background: #000;
+        color: #fff; padding: calc(28px + env(safe-area-inset-top, 0px)) 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+html.locked #lock { display: block; }
+.lockbox { max-width: 330px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.lockbox svg.pad-ic { width: 34px; height: 34px; opacity: 0.9; margin-bottom: 10px; }
+.lockbox h2 { font-size: 20px; font-weight: 600; margin: 0 0 6px; }
+.lockbox p { margin: 0; min-height: 20px; font-size: 14px; color: #D0D0D6; }
+.lockbox p.err { color: #FF8A80; }
+.dots { display: flex; gap: 14px; margin: 20px 0 26px; height: 14px; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; border: 1.6px solid #fff; }
+.dots i.on { background: #fff; }
+.dots.shake { animation: shake 0.35s; }
+@keyframes shake { 20%, 60% { transform: translateX(-9px); } 40%, 80% { transform: translateX(9px); } }
+.pad { display: grid; grid-template-columns: repeat(3, 76px); gap: 16px 26px; justify-content: center; }
+.pad button { width: 76px; height: 76px; border-radius: 50%; border: none; background: rgba(255,255,255,0.16);
+              color: #fff; font-size: 30px; font-weight: 400; display: flex; align-items: center; justify-content: center; }
+.pad button:active { background: rgba(255,255,255,0.4); }
+.pad button.ghost { background: none; font-size: 16px; }
+.pad button.ghost[hidden] { visibility: hidden; display: flex !important; }
+.pad button svg { width: 30px; height: 30px; }
+.pad[hidden] { display: none !important; }
+.lockbox .big { margin-top: 22px; }
+.lockbox .lnk { background: none; border: none; color: #fff; opacity: 0.85; font-size: 15px; padding: 12px; margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .dots.shake { animation: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Lobo Mau+</h1>
+  <div class="hbtns"><button class="link" id="btnClear" hidden>Limpar</button><button class="link" id="btnData">Dados</button></div>
+</header>
+
+<section id="welcome" class="empty" hidden>
+  <h2>Falta carregar os dados</h2>
+  O app precisa de dois arquivos gerados no Mac, em "Exportar para iPhone":
+  <ol>
+    <li><b>modelo-iphone.onnx</b> (uma vez só)</li>
+    <li>um arquivo <b>.lobomau</b> por condomínio</li>
+  </ol>
+  Mande por AirDrop (escolha "Salvar em Arquivos") e importe aqui.
+  <button class="big primary" id="btnImport1" style="margin-top:14px">Importar arquivos</button>
+</section>
+
+<section id="main" hidden>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-foto" aria-selected="true">Por foto</button>
+    <button role="tab" id="tab-area" aria-selected="false">Por metragem</button>
+    <button role="tab" id="tab-nome" aria-selected="false">Por nome</button>
+  </div>
+
+  <!-- comum às 3 abas -->
+  <div class="filters">
+    <label class="narrow">Ano <select id="year"></select></label>
+    <label>Procurar em <select id="scope"></select></label>
+  </div>
+  <button class="big secondary small" id="btnAll" data-tab="foto">Ver todas as fotos</button>
+  <div class="filters">
+    <label>Quadra <input id="fQd" autocomplete="off" autocapitalize="characters" placeholder="ex: 12"></label>
+    <label>Lote <input id="fLt" autocomplete="off" autocapitalize="characters" placeholder="ex: 5"></label>
+  </div>
+  <div class="switches">
+    <div class="sw-row">
+      <label class="switch"><input type="checkbox" id="fCorner" aria-label="Só casas de esquina"><span></span></label>
+      <div class="txt">Só esquinas</div>
+    </div>
+    <div class="sw-row">
+      <label class="switch"><input type="checkbox" id="fVacant" aria-label="Só lotes não edificados"><span></span></label>
+      <div class="txt">Só lotes<small>Não edificados</small></div>
+    </div>
+  </div>
+
+  <div id="panel-foto">
+    <div class="switches">
+      <div class="sw-row">
+        <label class="switch"><input type="checkbox" id="gpsOn" aria-label="Buscar pelo GPS"><span></span></label>
+        <div class="txt">Buscar pelo GPS<small id="gpsHint"></small></div>
+        <select id="radius" aria-label="Raio">
+          <option value="60">60 m</option><option value="100">100 m</option>
+          <option value="150" selected>150 m</option><option value="250">250 m</option>
+          <option value="500">500 m</option>
+        </select>
+      </div>
+    </div>
+    <div class="filters">
+      <label>Área total (m²) <input id="pAt" inputmode="decimal" placeholder="opcional" autocomplete="off"></label>
+      <button class="mini" id="btnShowAll">Mostrar todos</button>
+    </div>
+    <div class="filters">
+      <label>Área construída (m²) <input id="pAc" inputmode="decimal" placeholder="opcional" autocomplete="off"></label>
+      <label class="narrow">Margem <select id="pTol">
+        <option value="0.02">± 2%</option><option value="0.05" selected>± 5%</option>
+        <option value="0.1">± 10%</option><option value="0.2">± 20%</option>
+      </select></label>
+    </div>
+    <button class="big primary" id="btnCam">Fotografar fachada</button>
+    <button class="big secondary" id="btnAlbum">Escolher do álbum</button>
+  </div>
+
+  <div id="panel-area" hidden>
+    <div class="filters">
+      <label>Área construída (m²) <input id="aAc" inputmode="decimal" placeholder="ex: 245" autocomplete="off"></label>
+      <label>Área total (m²) <input id="aAt" inputmode="decimal" placeholder="ex: 360" autocomplete="off"></label>
+    </div>
+    <div class="filters">
+      <label>Margem <select id="aTol">
+        <option value="0.02">± 2%</option><option value="0.05" selected>± 5%</option>
+        <option value="0.1">± 10%</option><option value="0.2">± 20%</option>
+      </select></label>
+    </div>
+    <button class="big primary" id="btnArea">Buscar por metragem</button>
+  </div>
+
+  <div id="panel-nome" hidden>
+    <div class="filters">
+      <label>Nome do proprietário <input id="nName" autocomplete="off" autocapitalize="words" placeholder="nome completo ou parte"></label>
+    </div>
+    <div class="filters">
+      <label>CPF/CNPJ <input id="nDoc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="só números"></label>
+      <label>Inscrição <input id="nInsc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="em todos"></label>
+    </div>
+    <div class="filters">
+      <label>Área total (m²) <input id="nAt" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
+      <label>Área construída (m²) <input id="nAc" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
+    </div>
+    <p class="note">Preencha pelo menos um campo. A inscrição procura em todos os condomínios.</p>
+    <button class="big primary" id="btnNome">Buscar</button>
+  </div>
+
+  <div id="query" hidden><img id="qimg" alt="Foto procurada"><p id="status"></p></div>
+  <div id="results"></div>
+  <button id="more" hidden>+15</button>
+</section>
+
+<input type="file" id="inCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="inAlbum" accept="image/*" hidden>
+<input type="file" id="inImport" multiple hidden>
+
+<div id="shield" aria-hidden="true"></div>
+<div id="lock" role="dialog" aria-modal="true" aria-labelledby="lockTitle"><div class="lockbox">
+  <svg class="pad-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg>
+  <h2 id="lockTitle">Digite o código</h2>
+  <p id="lockMsg" aria-live="polite"></p>
+  <div class="dots" id="lockDots" aria-hidden="true"></div>
+  <div class="pad" id="lockPad">
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+    <button class="ghost" id="lockFace" aria-label="Usar Face ID" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9.5v1M15 9.5v1M12 9.5v3.5h-1M9.5 15.5c1.4 1.1 3.6 1.1 5 0"/></svg></button>
+    <button data-k="0">0</button>
+    <button class="ghost" id="lockDel" aria-label="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M17 9.5l-5 5M12 9.5l5 5"/></svg></button>
+  </div>
+  <button class="big primary" id="lockOk" hidden>Continuar</button>
+  <button class="lnk" id="lockCancel" hidden>Cancelar</button>
+  <button class="lnk" id="lockForgot" hidden>Esqueci o código</button>
+</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<button id="floatQ" aria-label="Sua foto (toque para aumentar)"><img id="floatImg" alt="Sua foto"><span>Sua foto</span></button>
+<button id="toTop" aria-label="Voltar ao topo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg></button>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
