@@ -1535,6 +1535,10 @@ async function pressKey(k) {
         return;
       }
       const wasSetup = lockMode === "setup2";
+      if (pin.length === FIXED.inicial.len && await checkFixed(pin, "inicial")) {
+        shake(); setLock(wasSetup ? "setup1" : "change1", "Use um código diferente da senha de instalação.", true);
+        return;
+      }
       await savePin(pin);
       changeByUser = false;
       setMaeFail({ n: 0, until: 0 });
@@ -1548,11 +1552,16 @@ async function pressKey(k) {
 }
 function confirmFirst() {
   if (entry.length < 4) return;
-  if (entry === "5912") {        // a senha de instalação tem de ser trocada
-    entry = ""; shake(); showLockUI(); lockMsg("Use um código diferente da senha de instalação.", true); return;
-  }
-  firstPin = entry;
-  setLock(lockMode === "setup1" ? "setup2" : "change2");
+  const pin = entry, back = lockMode === "setup1" ? "setup1" : "change1";
+  firstPin = pin;
+  setLock(back === "setup1" ? "setup2" : "change2");
+  // a senha de instalação não pode virar o código. Confere em segundo plano (pela impressão
+  // digital, sem a senha escrita aqui), sem travar o teclado enquanto você repete o código.
+  if (pin.length === FIXED.inicial.len) checkFixed(pin, "inicial").then((same) => {
+    if (same && firstPin === pin && (lockMode === "setup2" || lockMode === "change2")) {
+      shake(); setLock(back, "Use um código diferente da senha de instalação.", true);
+    }
+  });
 }
 let changeByUser = false;       // troca pedida em Dados: pode cancelar
 function startChangePin() {
