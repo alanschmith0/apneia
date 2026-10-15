@@ -412,7 +412,7 @@ function lotCard(lot, i, ctx) {
     v.innerHTML = ICON_V;
     v.setAttribute("aria-label", "Esta é a certa");
     v.onclick = () => confirmRight(lot, i, v);
-    bar.append(v);
+    bar.prepend(v);           // à esquerda, longe da setinha de baixar
   }
   bar.append(dl);
 
