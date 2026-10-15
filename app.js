@@ -24,6 +24,8 @@ let mainURLs = [];
 let searchSeq = 0;
 let lastQuery = null;      // { queries, cells, file, fromCamera, pos, heading }
 let pickerAt = 0;          // abriu câmera/álbum/importar/Safari: não travar ao voltar
+let exByInsc = new Map();  // aprimoramento: exemplos confirmados com o V (inscrição -> exemplos)
+const aprimOn = () => load("aprim") === "1";
 
 // ------------------------------------------------------------ banco local (IndexedDB)
 let dbP = openDB();
@@ -104,7 +106,31 @@ function qlText(it) { const { q, l } = quadraLote(it); return `Quadra ${q || "�
 const posText = (it) => (it.pos ? (core.isCorner(it) ? "Esquina" : "Centro") : "");
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICON_V = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg>';
+
+// ------------------------------------------------------------ "Você tem certeza?" no meio da tela
+function askSure(detail) {
+  return new Promise((res) => {
+    const bg = el("div", "ask");
+    bg.setAttribute("role", "alertdialog");
+    bg.setAttribute("aria-modal", "true");
+    const box = el("div", "box");
+    box.append(el("h3", "", "Você tem certeza?"));
+    if (detail) box.append(el("p", "", detail));
+    const nav = el("div", "nav");
+    const no = el("button", "", "NÃO"), yes = el("button", "main", "SIM");
+    const done = (v) => { bg.remove(); res(v); };
+    no.onclick = () => done(false);
+    yes.onclick = () => done(true);
+    bg.onclick = (e) => { if (e.target === bg) done(false); };
+    nav.append(no, yes);
+    box.append(nav);
+    bg.append(box);
+    document.body.append(bg);
+    no.focus();
+  });
+}
 
 // ------------------------------------------------------------ janelas sobrepostas (X no canto e arrastar para a esquerda no topo)
 const stack = [];
@@ -381,6 +407,13 @@ function lotCard(lot, i, ctx) {
   dl.innerHTML = ICON_DL;
   dl.setAttribute("aria-label", "Baixar imagem com os dados");
   dl.onclick = () => makeJPG(lot, pics.current());
+  if (ctx.mode === "foto" && aprimOn() && lastQuery) {
+    const v = el("button", "vbtn");
+    v.innerHTML = ICON_V;
+    v.setAttribute("aria-label", "Esta é a certa");
+    v.onclick = () => confirmRight(lot, i, v);
+    bar.append(v);
+  }
   bar.append(dl);
 
   const meta = el("div", "meta");
@@ -408,8 +441,9 @@ function lotCard(lot, i, ctx) {
   add(it.end, true);
   add(it.oc ? it.oc.charAt(0) + it.oc.slice(1).toLowerCase() : "", true);
   if (ctx.mode === "foto") {
-    const by2 = lot.photos.length > 1 && lot.pack.header.items[lot.fineHit ?? lot.hit].sec;
-    add(`Semelhança ${Math.round((lot.score ?? lot.sim) * 100)}${by2 ? " · pela 2ª foto" : ""}`, true);
+    const hi = lot.fineHit ?? lot.hit;
+    const by = hi === -1 ? " · pelo seu exemplo" : (lot.photos.length > 1 && lot.pack.header.items[hi] && lot.pack.header.items[hi].sec ? " · pela 2ª foto" : "");
+    add(`Semelhança ${Math.round((lot.score ?? lot.sim) * 100)}${by}`, true);
   } else if (ctx.mode === "area") {
     add(lot.diff === 0 ? "Metragem igual" : (lot.diff < 0.001 ? "Diferença menor que 0,1%"
       : `Diferença de ${(lot.diff * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`), true);
@@ -533,6 +567,7 @@ async function runPhotoSearch() {
     await Promise.all(used.map(core.loadVectors));
     await Promise.all(used.map(core.loadCells));
     if (seq !== searchSeq) return;
+    for (const l of lots) l.extra = exByInsc.get(l.insc) || null;
     core.rankLots(lots, q.queries);
     const h = useGps && pos && pos.source === "gps" ? q.heading : null;
     fotoState = { order: lots, ptr: 0, pool: [], q, bonus: h != null ? (l) => core.compassBonus(l, pos, h) : null };
@@ -552,6 +587,77 @@ function nextPhotoPage(check) {
   st.pool.sort((a, b) => b.score - a.score);
   const page = st.pool.splice(0, PAGE);
   appendResults(page);
+}
+
+// ------------------------------------------------------------ aprimoramento: "Esta é a certa"
+async function thumbOf(file) {
+  const { img, url } = await loadImg(file);
+  try {
+    const W = 240, H = Math.round(img.naturalHeight * W / img.naturalWidth);
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    c.getContext("2d").drawImage(img, 0, 0, W, H);
+    const b = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.7));
+    c.width = 0; c.height = 0;
+    return b;
+  } finally { URL.revokeObjectURL(url); }
+}
+async function confirmRight(lot, i, btn) {
+  const q = lastQuery;
+  if (!q || btn.classList.contains("done")) return;
+  if (!await askSure(`A sua foto vai ser guardada como exemplo do imóvel ${lot.insc}.`)) return;
+  try {
+    const e = q.queries[0], scale = Math.max(...e.map(Math.abs)) / 127 || 1e-8;
+    const emb = Int8Array.from(e, (v) => Math.max(-127, Math.min(127, Math.round(v / scale))));
+    const cells = Int8Array.from(q.cells[0], (v) => Math.max(-127, Math.min(127, Math.round(v * 127))));
+    await dbPut(`ex:${Date.now()}:${lot.insc}`, {
+      insc: lot.insc, condo: lot.pack.header.condo, emb: emb.buffer, scale, cells: cells.buffer,
+      thumb: await thumbOf(q.file), date: new Date().toISOString().slice(0, 10),
+    });
+    // estatística: em que posição a certa estava (para calibrar a busca com o uso real)
+    const st = await statsGet();
+    st.n++;
+    st.pos[Math.min(i + 1, 16)] = (st.pos[Math.min(i + 1, 16)] || 0) + 1;
+    if (st.log.length < 2000) st.log.push([i + 1, +lot.sim.toFixed(3), lot.fine == null ? null : +lot.fine.toFixed(3),
+      +lot.score.toFixed(3), fotoState && fotoState.bonus ? 1 : 0]);
+    await dbPut("stats", st);
+    await loadExamples();
+    btn.classList.add("done");
+    btn.setAttribute("aria-label", "Exemplo guardado");
+    toast("Guardado. As próximas buscas vão usar esta foto.");
+  } catch (err) { toast("Não consegui guardar o exemplo"); }
+}
+async function statsGet() { return (await dbGet("stats")) || { n: 0, pos: {}, log: [] }; }
+
+function openExamples() {
+  const ov = openOverlay("Exemplos guardados");
+  const draw = () => {
+    for (const u of ov.urls) URL.revokeObjectURL(u);
+    ov.urls.length = 0;
+    ov.body.innerHTML = "";
+    const all = [...exByInsc.values()].flat().sort((a, b) => String(b.key).localeCompare(String(a.key)));
+    if (!all.length) { ov.body.append(el("p", "note", "Nenhum exemplo guardado.")); return; }
+    ov.body.append(el("p", "note", "Fotos que você confirmou com o V. Toque em Desfazer se marcou alguma por engano."));
+    for (const ex of all) {
+      const r = el("div", "exrow");
+      const img = el("img");
+      if (ex.thumb) { const u = URL.createObjectURL(ex.thumb); ov.urls.push(u); img.src = u; }
+      img.alt = `Exemplo de ${ex.insc}`;
+      const t = el("div", "t", ex.insc);
+      t.append(el("small", "", `${ex.condo || ""} · ${ex.date || ""}`));
+      const b = el("button", "", "Desfazer");
+      b.onclick = async () => {
+        if (!await askSure(`O exemplo do imóvel ${ex.insc} vai ser removido.`)) return;
+        await tx("readwrite", (s) => s.delete(ex.key));
+        await loadExamples();
+        draw();
+        toast("Exemplo removido");
+      };
+      r.append(img, t, b);
+      ov.body.append(r);
+    }
+  };
+  draw();
 }
 
 // ------------------------------------------------------------ busca por metragem
@@ -1007,8 +1113,22 @@ function fillScope() {
   for (const p of yp) opt(p.header.condo, `${p.header.condo} (${lotsOf(p)})`);
   sel.value = [...sel.options].some((o) => o.value === cur) ? cur : "all";
 }
+async function loadExamples() {
+  exByInsc = new Map();
+  for (const k of (await dbKeys()).filter((k) => String(k).startsWith("ex:"))) {
+    try {
+      const r = await dbGet(k);
+      const q = new Int8Array(r.emb), emb = new Float32Array(q.length);
+      for (let i = 0; i < q.length; i++) emb[i] = q[i] * r.scale;
+      const ex = { key: k, insc: r.insc, emb, cells: new Int8Array(r.cells), thumb: r.thumb, date: r.date, condo: r.condo };
+      if (!exByInsc.has(r.insc)) exByInsc.set(r.insc, []);
+      exByInsc.get(r.insc).push(ex);
+    } catch (e) { /* exemplo ruim: ignora */ }
+  }
+}
 async function refresh() {
   await loadPacks();
+  await loadExamples();
   const hasModel = !!(await dbGet("model"));
   $("welcome").hidden = hasModel && packs.length > 0;
   $("main").hidden = packs.length === 0;
@@ -1055,6 +1175,31 @@ async function openData() {
       }
       ov.body.append(g);
     }
+    ov.body.append(el("div", "gtitle", "Aprimoramento"));
+    const ga = el("div", "group");
+    const ra = el("div", "row");
+    const da = el("div", "", "Ativar Aprimoramento");
+    da.append(el("small", "", "Mostra o botão V nos resultados da busca por foto"));
+    const swa = el("label", "switch");
+    swa.innerHTML = '<input type="checkbox" aria-label="Ativar Aprimoramento"><span></span>';
+    const ia = swa.querySelector("input");
+    ia.checked = aprimOn();
+    ia.onchange = () => {
+      store("aprim", ia.checked ? "1" : "0");
+      toast(ia.checked ? "Aprimoramento ativado" : "Aprimoramento desativado");
+      if (mode === "foto" && shown.length) { $("results").innerHTML = ""; appendResults(shown.splice(0)); }
+    };
+    ra.append(da, swa);
+    const nEx = [...exByInsc.values()].reduce((s, v) => s + v.length, 0);
+    const st = await statsGet();
+    const rb = el("div", "row");
+    const db_ = el("div", "", `Exemplos guardados: ${nEx}`);
+    const first = st.n ? Math.round(100 * (st.pos[1] || 0) / st.n) : null;
+    db_.append(el("small", "", st.n ? `A certa veio em 1º em ${first}% das ${st.n} confirmações` : "Nenhuma confirmação ainda"));
+    rb.append(db_);
+    if (nEx) { const bv = el("button", "", "Ver"); bv.style.color = "var(--accent)"; bv.onclick = openExamples; rb.append(bv); }
+    ga.append(ra, rb);
+    ov.body.append(ga);
     ov.body.append(el("div", "gtitle", "Segurança"));
     const g3 = el("div", "group");
     const r1 = el("div", "row");

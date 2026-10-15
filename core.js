@@ -138,6 +138,12 @@ export function rankLots(lots, queries) {
         if (s > best) { best = s; bestIdx = idx; }
       }
     }
+    // exemplos confirmados pelo usuário (botão V): fotos dele mesmo daquele imóvel
+    if (lot.extra) for (const ex of lot.extra) for (const q of queries) {
+      let s = 0;
+      for (let k = 0; k < dim; k++) s += ex.emb[k] * q[k];
+      if (s > best) { best = s; bestIdx = -1; }
+    }
     lot.sim = best;
     lot.hit = bestIdx;
     lot.score = best;
@@ -187,7 +193,12 @@ export function projectCells(cells, pack) {
 
 // semelhança "pedaço a pedaço": cada pedaço de uma foto procura o mais parecido na outra (nos dois sentidos)
 export function cellScore(q, pack, idx) {
-  const K = pack.header.cell_dim, n = q.length / K, base = idx * n * K, c = pack.cells;
+  const K = pack.header.cell_dim, n = q.length / K;
+  return cellScoreArr(q, pack.cells, idx * n * K, K);
+}
+// c: células na escala int8 (x127), em Int8Array (pacote) ou Float32Array (exemplo do usuário)
+export function cellScoreArr(q, c, base, K) {
+  const n = q.length / K;
   const qOn = [], cOn = [];
   for (let i = 0; i < n; i++) {
     let a = false, b = false;
@@ -227,12 +238,32 @@ export function verifyLots(lots, qcellsList, D, bonus) {
         const s = cellScore(q, p, idx);
         if (s > fine) { fine = s; lot.fineHit = idx; }
       }
+      if (lot.extra) for (const ex of lot.extra) {
+        const c = exampleCells(ex, p, D);
+        for (const q of proj.get(p)) {
+          const s = cellScoreArr(q, c, 0, p.header.cell_dim);
+          if (s > fine) { fine = s; lot.fineHit = -1; }
+        }
+      }
     }
     lot.fine = fine;
     lot.score = (fine == null ? lot.sim : 0.5 * lot.sim + 0.5 * fine) + (bonus ? bonus(lot) : 0);
   }
   lots.sort((a, b) => b.score - a.score);
   return lots;
+}
+
+// células de um exemplo do usuário no espaço reduzido do pacote (guardadas em cache por pacote)
+export function exampleCells(ex, pack, D) {
+  ex.cache = ex.cache || new Map();
+  if (!ex.cache.has(pack)) {
+    const raw = new Float32Array(ex.cells.length);
+    for (let i = 0; i < raw.length; i++) raw[i] = ex.cells[i] / 127;
+    const pj = projectCells(raw, pack);
+    for (let i = 0; i < pj.length; i++) pj[i] *= 127;
+    ex.cache.set(pack, pj);
+  }
+  return ex.cache.get(pack);
 }
 
 // ------------------------------------------------------------ bússola

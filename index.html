@@ -107,6 +107,23 @@ header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01e
 .dl { flex: none; width: 40px; height: 36px; border: none; border-radius: 10px; background: var(--soft); color: var(--accent);
       display: flex; align-items: center; justify-content: center; }
 .dl svg { width: 22px; height: 22px; }
+.vbtn { flex: none; width: 40px; height: 36px; border: none; border-radius: 10px; background: #2E7D32; color: #FFFFFF;
+        display: flex; align-items: center; justify-content: center; }
+.vbtn svg { width: 24px; height: 24px; }
+.vbtn.done { background: var(--soft); color: #2E7D32; }
+/* confirmação no meio da tela */
+.ask { position: fixed; inset: 0; z-index: 320; background: rgba(0,0,0,0.5); display: flex; align-items: center;
+       justify-content: center; padding: 24px; }
+.ask .box { background: var(--card); color: var(--text); border-radius: 16px; padding: 20px 18px 16px; width: min(340px, 100%);
+            text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.4); }
+.ask h3 { margin: 0 0 6px; font-size: 19px; }
+.ask p { margin: 0 0 16px; font-size: 14px; color: var(--muted); line-height: 1.4; }
+.ask .nav { margin: 0; }
+.exrow { display: flex; gap: 12px; align-items: center; background: var(--card); border-radius: 12px; padding: 8px; margin-bottom: 8px; }
+.exrow img { width: 84px; height: 63px; object-fit: cover; border-radius: 8px; flex: none; background: var(--line); }
+.exrow .t { flex: 1; font-size: 14px; line-height: 1.35; }
+.exrow .t small { display: block; color: var(--muted); }
+.exrow button { flex: none; border: none; background: none; color: #D0342C; font-size: 15px; padding: 8px; }
 .res .meta { padding: 4px 14px 4px; }
 .res .top { display: flex; align-items: center; gap: 10px; }
 .res .pos { font-size: 15px; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -218,7 +235,8 @@ header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01e
 
 /* ---------- bloqueio */
 html.locked header, html.locked #main, html.locked #welcome, html.locked #floatQ, html.locked #toTop, html.locked .ov,
-html.shield header, html.shield #main, html.shield #welcome, html.shield #floatQ, html.shield #toTop, html.shield .ov {
+html.shield header, html.shield #main, html.shield #welcome, html.shield #floatQ, html.shield #toTop, html.shield .ov,
+html.locked .ask, html.shield .ask {
   visibility: hidden !important; }
 html.locked, html.locked body, html.shield, html.shield body { background: #000 !important; }
 #shield { position: fixed; inset: -50px; z-index: 400; display: none; background: #000; }
