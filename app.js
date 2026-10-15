@@ -47,7 +47,6 @@ async function tx(mode, fn) {
 }
 const dbGet = (k) => tx("readonly", (s) => s.get(k));
 const dbPut = (k, v) => tx("readwrite", (s) => s.put(v, k));
-const dbDel = (k) => tx("readwrite", (s) => s.delete(k));
 const dbKeys = () => tx("readonly", (s) => s.getAllKeys());
 function store(k, v) { try { localStorage.setItem(LS_PREFIX + k, v); } catch (e) {} }
 function load(k) { try { return localStorage.getItem(LS_PREFIX + k); } catch (e) { return null; } }
@@ -418,11 +417,13 @@ function lotCard(lot, i, ctx) {
   const acts = el("div", "acts");
   const b1 = el("button", "", "Copiar inscrição");
   b1.onclick = () => copyInsc(lot.insc);
-  const b2 = el("button", "", ctx.mode === "foto" ? "Comparar" : "Ver foto");
-  b2.onclick = () => ctx.onCompare(i);
-  const b3 = el("button", "neg", "Negativa");
+  const b2 = el("button", "", "Copiar dados");
+  b2.onclick = () => copyData(lot);
+  const b3 = el("button", "", "Negativa");
   b3.onclick = () => openNegativa(lot.insc);
-  acts.append(b1, b2, b3);
+  const b4 = el("button", "", ctx.mode === "foto" ? "Comparar" : "Ver foto");
+  b4.onclick = () => ctx.onCompare(i);
+  acts.append(b1, b2, b3, b4, locButton(lot, "wide"));
   card.append(pics, bar, meta, acts);
   return card;
 }
@@ -510,7 +511,8 @@ async function runPhotoSearch() {
     const af = photoAreaFilter();
     const keep = (arr) => (af ? arr.filter(af.test) : arr);
     if (useGps && pos) {
-      let radius = Math.max(+$("radius").value, (pos.acc || 0) + 30);
+      // margem só do quanto o GPS pode errar (com sinal bom, 30 m continua 30 m)
+      let radius = Math.max(+$("radius").value, (pos.acc || 0) + 10);
       lots = keep(core.lotsNear(base, pos, radius, f));
       while (lots.length < 5 && radius < 1000) {
         radius = Math.min(1000, radius * 2);
@@ -688,33 +690,65 @@ function factLines(lot, all) {
   lines.push(["POSIÇÃO", it.pos ? (core.isCorner(it) ? "ESQUINA" : "CENTRO") : "—"]);
   return lines;
 }
-function factsBox(lot, urls, all) {
+function factsBox(lot, urls, all, withActions) {
   const box = el("div", "facts");
-  box.append(carousel(lot, urls));
+  const pics = carousel(lot, urls);
+  box.append(pics);
+  if (withActions) {          // setinha de baixar, à direita, logo abaixo da foto
+    const bar = el("div", "picbar");
+    bar.append(el("span", "hint", lot.photos.length > 1 ? "2 fotos, deslize para ver a outra" : ""));
+    const dl = el("button", "dl");
+    dl.innerHTML = ICON_DL;
+    dl.setAttribute("aria-label", "Baixar imagem com os dados");
+    dl.onclick = () => makeJPG(lot, pics.current());
+    bar.append(dl);
+    box.append(bar);
+  }
   for (const [k, v] of factLines(lot, all)) {
     const d = el("div");
     d.append(el("b", "", k + ": "), document.createTextNode(v));
     box.append(d);
   }
+  if (withActions) {
+    const acts = el("div", "acts");
+    const b1 = el("button", "", "Copiar inscrição");
+    b1.onclick = () => copyInsc(lot.insc);
+    const b2 = el("button", "", "Copiar texto");
+    b2.onclick = () => copyData(lot);
+    const b3 = el("button", "", "Negativa");
+    b3.onclick = () => openNegativa(lot.insc);
+    acts.append(b1, b2, b3, locButton(lot));
+    box.append(acts);
+  }
   return box;
 }
+function ownerSorted(lots) {
+  return [...lots].sort((a, b) => a.pack.header.condo.localeCompare(b.pack.header.condo, "pt-BR") || a.insc.localeCompare(b.insc));
+}
 function openOwner(lot) {
-  const lots = ownerLots(lot.item);
+  const lots = ownerSorted(ownerLots(lot.item));
   const ov = openOverlay("Imóveis do proprietário");
   const head = el("div", "ownhead");
   head.append(el("div", "", `PROPRIETÁRIO: ${lot.item.nome || fmtDoc(lot.item.doc) || "—"}`),
               el("div", "", `QUANTIDADE DE IMÓVEIS: ${lots.length}`));
+  const top = el("div", "nav");
+  const sAll = el("button", "main", "Salvar tudo");
+  sAll.onclick = () => saveAllJPG(lots, sAll);
+  const cAll = el("button", "", "Copiar tudo");
+  cAll.onclick = () => copyText(lots.map((l) => dataLines(l).join("\n")).join("\n\n"),
+                                `Dados de ${lots.length} ${lots.length === 1 ? "imóvel copiados" : "imóveis copiados"}`);
+  top.append(sAll, cAll);
+  head.append(top);
   ov.body.append(head);
-  const byCondo = new Map();
+  let condo = null;
   for (const l of lots) {
     const c = l.pack.header.condo;
-    if (!byCondo.has(c)) byCondo.set(c, []);
-    byCondo.get(c).push(l);
-  }
-  for (const c of [...byCondo.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"))) {
-    const list = byCondo.get(c).sort((a, b) => a.insc.localeCompare(b.insc));
-    ov.body.append(el("div", "ctitle", `${c} (${list.length} ${list.length === 1 ? "imóvel" : "imóveis"})`));
-    for (const l of list) ov.body.append(factsBox(l, ov.urls, false));
+    if (c !== condo) {
+      condo = c;
+      const n = lots.filter((x) => x.pack.header.condo === c).length;
+      ov.body.append(el("div", "ctitle", `${c} (${n} ${n === 1 ? "imóvel" : "imóveis"})`));
+    }
+    ov.body.append(factsBox(l, ov.urls, false, true));
   }
 }
 
@@ -723,19 +757,11 @@ function openSafari(url) {
   pickerAt = Date.now();          // ao voltar do Safari não pede o código de novo
   window.open(url, "_blank", "noopener");
 }
-async function openNegativa(insc) {
-  await copyText(insc, `Inscrição ${insc} copiada. Cole no campo da Prefeitura.`);
-  const ov = openOverlay("Negativa", { full: true });
-  const bar = el("div", "negbar");
-  bar.append(el("span", "", `Inscrição ${insc} já copiada: toque no campo e cole. Se a página não aparecer, abra no Safari.`));
-  const b = el("button", "", "Abrir no Safari");
-  b.onclick = () => openSafari(PREFEITURA);
-  bar.append(b);
-  const fr = el("iframe");
-  fr.src = PREFEITURA;
-  fr.title = "Página da Prefeitura";
-  fr.referrerPolicy = "no-referrer";
-  ov.body.append(bar, fr);
+// abre direto no navegador (dentro do app a página da Prefeitura trava). A inscrição vai copiada.
+function openNegativa(insc) {
+  try { navigator.clipboard.writeText(insc).catch(() => {}); } catch (e) {}
+  openSafari(PREFEITURA);
+  toast(`Inscrição ${insc} copiada. Cole no campo da Prefeitura.`);
 }
 
 // ------------------------------------------------------------ ver todas as fotos do condomínio
@@ -791,9 +817,9 @@ function openInfo(lot) {
   b2.onclick = () => copyText(allDataText(lot), "Dados do imóvel copiados");
   nav.append(b1, b2);
   const nav2 = el("div", "nav");
-  const b3 = el("button", "", "Prefeitura");
+  const b3 = el("button", "", "Negativa");
   b3.onclick = () => openNegativa(lot.insc);
-  nav2.append(b3);
+  nav2.append(b3, locButton(lot));
   if (others > 0) {
     const b4 = el("button", "", `+${others} do proprietário`);
     b4.onclick = () => openOwner(lot);
@@ -803,30 +829,58 @@ function openInfo(lot) {
 }
 
 // ------------------------------------------------------------ imagem JPG (foto + dados, estilo Bloco de Notas)
-async function makeJPG(lot, idx) {
-  try {
-    const it = lot.item, { q, l } = quadraLote(it);
-    const lines = [
-      `INSCRIÇÃO: ${lot.insc}`,
-      `NOME: ${(it.nome || "—").toUpperCase()}`,
-      `CPF/CNPJ: ${fmtDoc(it.doc) || "—"}`,
-      `ENDEREÇO: ${["QD. " + (q || "—"), "LT. " + (l || "—"), lot.pack.header.condo].join(" ").toUpperCase()}`,
-      `ÁREA TOTAL: ${fmtNum(it.at) ? fmtNum(it.at) + " M²" : "—"}`,
-      `ÁREA CONSTRUÍDA: ${fmtNum(it.ac) ? fmtNum(it.ac) + " M²" : "—"}`,
-    ];
-    const url = URL.createObjectURL(core.photoBlob(lot.pack, lot.pack.header.items[idx]));
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    URL.revokeObjectURL(url);
-    const W = Math.max(960, img.naturalWidth), ph = Math.round(img.naturalHeight * W / img.naturalWidth);
-    const fs = Math.round(W / 30), lh = Math.round(fs * 1.45), pad = Math.round(fs * 0.8);
-    const font = `${fs}px Inconsolata, Consolas, "Lucida Console", "Courier New", monospace`;
-    try { await document.fonts.load(font); } catch (e) {}
-    const c = document.createElement("canvas"), x = c.getContext("2d");
-    x.font = font;
-    const wrap = [];          // quebra a linha se não couber, como o Bloco de Notas
-    for (const ln of lines) {
+// os 6 dados do imóvel, em caixa alta (usados no JPG e em "Copiar dados")
+function dataLines(lot) {
+  const it = lot.item, { q, l } = quadraLote(it);
+  return [
+    `INSCRIÇÃO: ${lot.insc}`,
+    `NOME: ${(it.nome || "—").toUpperCase()}`,
+    `CPF/CNPJ: ${fmtDoc(it.doc) || "—"}`,
+    `ENDEREÇO: ${["QD. " + (q || "—"), "LT. " + (l || "—"), lot.pack.header.condo].join(" ").toUpperCase()}`,
+    `ÁREA TOTAL: ${fmtNum(it.at) ? fmtNum(it.at) + " M²" : "—"}`,
+    `ÁREA CONSTRUÍDA: ${fmtNum(it.ac) ? fmtNum(it.ac) + " M²" : "—"}`,
+  ];
+}
+const copyData = (lot) => copyText(dataLines(lot).join("\n"), "Dados do imóvel copiados");
+
+// localização do lote (centro do PIN) com links do Google Maps e do Waze, para colar no WhatsApp
+function copyLocation(lot) {
+  const it = lot.item;
+  if (it.lat == null || it.lon == null) { toast("Este imóvel não tem localização no KMZ"); return; }
+  const { q, l } = quadraLote(it);
+  const ll = `${(+it.lat).toFixed(6)},${(+it.lon).toFixed(6)}`;
+  copyText([
+    `INSCRIÇÃO: ${lot.insc}`,
+    `QD. ${q || "—"} LT. ${l || "—"} ${lot.pack.header.condo}`.toUpperCase(),
+    `Google Maps: https://maps.google.com/?q=${ll}`,
+    `Waze: https://waze.com/ul?ll=${ll}&navigate=yes`,
+  ].join("\n"), "Localização copiada. Cole no WhatsApp.");
+}
+function locButton(lot, cls) {
+  const b = el("button", cls || "", "Copiar localização");
+  b.onclick = () => copyLocation(lot);
+  if (lot.item.lat == null) b.disabled = true;
+  return b;
+}
+
+const JPG_FONT = (fs) => `${fs}px Inconsolata, Consolas, "Lucida Console", "Courier New", monospace`;
+async function photoImage(lot, idx) {
+  const url = URL.createObjectURL(core.photoBlob(lot.pack, lot.pack.header.items[idx]));
+  const img = new Image();
+  img.src = url;
+  try { await img.decode(); } finally { URL.revokeObjectURL(url); }
+  return img;
+}
+// uma ou várias fachadas, uma embaixo da outra, cada uma com os seus dizeres (estilo Bloco de Notas)
+async function composeJPG(entries, W) {
+  const fs = Math.round(W / 30), lh = Math.round(fs * 1.45), pad = Math.round(fs * 0.8);
+  const font = JPG_FONT(fs);
+  try { await document.fonts.load(font); } catch (e) {}
+  const c = document.createElement("canvas"), x = c.getContext("2d");
+  x.font = font;
+  const blocks = entries.map(({ img, lines }) => {
+    const wrap = [];
+    for (const ln of lines) {          // quebra a linha se não couber, como o Bloco de Notas
       let cur = "";
       for (const w of ln.split(" ")) {
         const t = cur ? cur + " " + w : w;
@@ -834,41 +888,101 @@ async function makeJPG(lot, idx) {
       }
       wrap.push(cur);
     }
-    c.width = W;
-    c.height = ph + pad * 2 + wrap.length * lh;
-    x.fillStyle = "#FFFFFF";
-    x.fillRect(0, 0, c.width, c.height);
-    x.imageSmoothingQuality = "high";
-    x.drawImage(img, 0, 0, W, ph);
+    const ph = Math.round(img.naturalHeight * W / img.naturalWidth);
+    return { img, wrap, ph, h: ph + pad * 2 + wrap.length * lh };
+  });
+  const gap = Math.round(lh * 1.2);
+  c.width = W;
+  c.height = blocks.reduce((s, b) => s + b.h, 0) + gap * (blocks.length - 1);
+  x.fillStyle = "#FFFFFF";
+  x.fillRect(0, 0, c.width, c.height);
+  x.imageSmoothingQuality = "high";
+  let y = 0;
+  for (const b of blocks) {
+    x.drawImage(b.img, 0, y, W, b.ph);
     x.font = font;
     x.fillStyle = "#000000";
     x.textBaseline = "top";
-    wrap.forEach((t, k) => x.fillText(t, pad, ph + pad + k * lh));
-    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.92));
-    c.width = 0; c.height = 0;
-    const file = new File([blob], `${lot.insc}.jpg`, { type: "image/jpeg" });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      pickerAt = Date.now();
-      try { await navigator.share({ files: [file] }); } catch (e) { /* cancelou */ }
-      pickerAt = 0;
-    } else {
-      const a = el("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = file.name;
-      document.body.append(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    }
+    b.wrap.forEach((t, k) => x.fillText(t, pad, y + b.ph + pad + k * lh));
+    y += b.h + gap;
+  }
+  const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.9));
+  c.width = 0; c.height = 0;
+  return blob;
+}
+async function shareFiles(files) {
+  if (navigator.canShare && navigator.canShare({ files })) {
+    pickerAt = Date.now();
+    try { await navigator.share({ files }); } catch (e) { /* cancelou */ }
+    pickerAt = 0;
+    return;
+  }
+  for (const f of files) {
+    const a = el("a");
+    a.href = URL.createObjectURL(f);
+    a.download = f.name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+}
+async function makeJPG(lot, idx) {
+  try {
+    const img = await photoImage(lot, idx);
+    const blob = await composeJPG([{ img, lines: dataLines(lot) }], Math.max(960, img.naturalWidth));
+    await shareFiles([new File([blob], `${lot.insc}.jpg`, { type: "image/jpeg" })]);
   } catch (e) { toast("Não consegui gerar a imagem"); }
+}
+// "Salvar tudo": todas as fachadas do proprietário numa imagem só. O iPhone não desenha imagens
+// gigantes, então acima de 25 imóveis o arquivo é dividido em partes (todas salvas de uma vez).
+const PER_IMAGE = 25;
+async function saveAllJPG(lots, btn) {
+  const old = btn.textContent;
+  btn.disabled = true;
+  try {
+    const files = [], parts = Math.ceil(lots.length / PER_IMAGE);
+    const nome = core.normText(lots[0].item.nome || "proprietario").replace(/[^A-Z0-9]+/g, "_").slice(0, 40) || "proprietario";
+    for (let p = 0; p < parts; p++) {
+      btn.textContent = parts > 1 ? `Gerando ${p + 1} de ${parts}…` : "Gerando…";
+      const chunk = lots.slice(p * PER_IMAGE, (p + 1) * PER_IMAGE);
+      const entries = [];
+      for (const l of chunk) entries.push({ img: await photoImage(l, l.photos[0]), lines: dataLines(l) });
+      const blob = await composeJPG(entries, 720);
+      files.push(new File([blob], parts > 1 ? `${nome}_${p + 1}de${parts}.jpg` : `${nome}.jpg`, { type: "image/jpeg" }));
+    }
+    btn.textContent = old;
+    await shareFiles(files);
+  } catch (e) { toast("Não consegui gerar a imagem"); }
+  finally { btn.textContent = old; btn.disabled = false; }
 }
 
 // ------------------------------------------------------------ dados (importar / apagar)
+// nome de exibição e ordem dos condomínios (o pacote do Mac guarda o nome da pasta)
+const CONDO_NAMES = [
+  ["Araguaia", "Alphaville Araguaia"], ["Cruzeiro", "Alphaville Cruzeiro"], ["Goiás", "Alphaville Goiás"],
+  ["Ipês", "Alphaville Ipês"], ["Privilege", "Plateau Dor Privilege"], ["Unique", "Plateau Dor Unique"],
+  ["Munique", "Jardins Munique"], ["Milão", "Jardins Milão"], ["Paris", "Jardins Paris"], ["Atenas", "Jardins Atenas"],
+  ["Valência", "Jardins Valência"], ["Verona", "Jardins Verona"], ["Itália", "Jardins Itália"], ["França", "Jardins França"],
+  ["Portal 1", "Portal do Sol 1"], ["Portal 2", "Portal do Sol 2"], ["Portal Garden", "Portal do Sol Garden"],
+  ["Portal Green", "Portal do Sol Green"], ["Aldeia", "Aldeia do Vale"], ["Condomínio do Lago", "Condomínio do Lago"],
+  ["Granville", "Granville"], ["Florença", "Jardim Florença"], ["Madri", "Jardins Madri"], ["Lisboa", "Jardins Lisboa"],
+  ["Jaó", "Setor Jaó"],
+];
+const CONDO_MAP = new Map(CONDO_NAMES.map(([raw, nice], i) => [core.normText(raw), { nice, i }]));
+
 async function loadPacks() {
   packs = [];
   const keys = (await dbKeys()).filter((k) => String(k).startsWith("pkg:"));
   for (const k of keys) {
-    try { const p = await core.readPackage((await dbGet(k)).blob); p.key = k; packs.push(p); } catch (e) { /* ignora pacote ruim */ }
+    try {
+      const p = await core.readPackage((await dbGet(k)).blob);
+      p.key = k;
+      const m = CONDO_MAP.get(core.normText(p.header.condo));
+      p.order = m ? m.i : 999;
+      if (m) p.header.condo = m.nice;
+      packs.push(p);
+    } catch (e) { /* ignora pacote ruim */ }
   }
-  packs.sort((a, b) => a.header.condo.localeCompare(b.header.condo, "pt-BR"));
+  packs.sort((a, b) => a.order - b.order || a.header.condo.localeCompare(b.header.condo, "pt-BR"));
 }
 function fillYears() {
   const sel = $("year"), cur = sel.value || load("year");
@@ -936,15 +1050,7 @@ async function openData() {
         const info = el("div", "", h.condo);
         const two = [...lots.values()].filter((v) => v.length > 1).length;
         info.append(el("small", "", `${lots.size} imóveis${two ? ` (${two} com 2 fotos)` : ""}, gerado em ${h.created}`));
-        const del = el("button", "", "Apagar");
-        del.onclick = async () => {
-          if (!confirm(`Apagar ${h.condo} (${y}) deste iPhone?`)) return;
-          await dbDel(p.key);
-          await refresh();
-          await render();
-          toast("Condomínio apagado");
-        };
-        row.append(info, del);
+        row.append(info);           // sem botão de apagar: a base só é substituída importando de novo
         g.append(row);
       }
       ov.body.append(g);
@@ -1029,9 +1135,10 @@ function syncGps() {
   $("gpsHint").textContent = on ? "Só imóveis perto de você (ou do local da foto)" : "Desligado: compara com todos";
 }
 $("gpsOn").checked = load("gpsOn") !== "0";
+if (load("radius")) $("radius").value = load("radius");
 syncGps();
 $("gpsOn").onchange = () => { store("gpsOn", gpsOn() ? "1" : "0"); syncGps(); if (gpsOn()) startCompass(); redoSearch(); };
-$("radius").onchange = () => { if (gpsOn()) redoSearch(); };
+$("radius").onchange = () => { store("radius", $("radius").value); if (gpsOn()) redoSearch(); };
 for (const id of ["fCorner", "fVacant"]) {
   $(id).checked = load(id) === "1";
   $(id).onchange = () => { store(id, $(id).checked ? "1" : "0"); redoSearch(); };
@@ -1197,7 +1304,7 @@ function showLockUI() {
   $("lockDots").hidden = dead;
   $("lockOk").hidden = !(lockMode === "setup1" || lockMode === "change1");
   $("lockOk").disabled = entry.length < 4;
-  $("lockCancel").hidden = !lockMode.startsWith("change") || !!(lockCfg && lockCfg.needMae);
+  $("lockCancel").hidden = !((lockMode.startsWith("change") || lockMode === "mae") && changeByUser && lockCfg && !lockCfg.needMae);
   $("lockForgot").hidden = lockMode !== "unlock";
   $("lockFace").hidden = !(lockMode === "unlock" && lockCfg && lockCfg.face);
   drawDots();
@@ -1211,6 +1318,7 @@ function setLock(m, msg, err) {
 const isLocked = () => document.documentElement.classList.contains("locked");
 function lockNow() {
   if (!lockCfg || lockMode === "dead") return;
+  changeByUser = false;
   setLock(lockCfg.needMae ? "mae" : "unlock",
           lockCfg.needMae ? "Código errado 3 vezes. Só a senha mãe libera o app." : "");
 }
@@ -1283,6 +1391,7 @@ async function pressKey(k) {
       }
       const wasSetup = lockMode === "setup2";
       await savePin(pin);
+      changeByUser = false;
       setMaeFail({ n: 0, until: 0 });
       unlockNow();
       toast(wasSetup ? "Código criado" : "Código trocado");
@@ -1300,17 +1409,19 @@ function confirmFirst() {
   firstPin = entry;
   setLock(lockMode === "setup1" ? "setup2" : "change2");
 }
+let changeByUser = false;       // troca pedida em Dados: pode cancelar
 function startChangePin() {
   closeAllOverlays();
-  setLock("change1");
+  changeByUser = true;
+  setLock("mae", "Para trocar o código, digite primeiro a senha mãe.");
 }
 
 $("lockPad").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (b) pressKey(b.dataset.k); });
 $("lockDel").onclick = () => pressKey("del");
 $("lockOk").onclick = confirmFirst;
 $("lockFace").onclick = () => tryFace(false);
-$("lockCancel").onclick = () => { if (lockCfg && !lockCfg.needMae) unlockNow(); };
-$("lockForgot").onclick = () => setLock("mae", "Digite a senha mãe para criar um código novo.");
+$("lockCancel").onclick = () => { if (lockCfg && !lockCfg.needMae) { changeByUser = false; unlockNow(); } };
+$("lockForgot").onclick = () => { changeByUser = false; setLock("mae", "Digite a senha mãe para criar um código novo."); };
 document.addEventListener("keydown", (e) => {
   if (!isLocked()) return;
   if (/^[0-9]$/.test(e.key)) pressKey(e.key);
