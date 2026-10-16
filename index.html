@@ -333,15 +333,15 @@ html.locked #lock { display: block; }
       </div>
     </div>
     <div class="filters">
-      <label>Área total (m²) <input id="pAt" inputmode="decimal" placeholder="opcional" autocomplete="off"></label>
-      <button class="mini" id="btnShowAll">Mostrar todos</button>
-    </div>
-    <div class="filters">
       <label>Área construída (m²) <input id="pAc" inputmode="decimal" placeholder="opcional" autocomplete="off"></label>
       <label class="narrow">Margem <select id="pTol">
         <option value="0.02">± 2%</option><option value="0.05" selected>± 5%</option>
         <option value="0.1">± 10%</option><option value="0.2">± 20%</option>
       </select></label>
+    </div>
+    <div class="filters">
+      <label>Área total (m²) <input id="pAt" inputmode="decimal" placeholder="opcional" autocomplete="off"></label>
+      <button class="mini" id="btnShowAll">Mostrar todos</button>
     </div>
     <div class="qlslot" data-tab="foto"></div>
     <button class="big primary" id="btnCam">Fotografar fachada</button>
@@ -372,8 +372,8 @@ html.locked #lock { display: block; }
       <label>Inscrição <input id="nInsc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="em todos"></label>
     </div>
     <div class="filters">
-      <label>Área total (m²) <input id="nAt" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
       <label>Área construída (m²) <input id="nAc" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
+      <label>Área total (m²) <input id="nAt" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
     </div>
     <div class="qlslot" data-tab="nome"></div>
     <p class="note">Preencha pelo menos um campo. A inscrição procura em todos os condomínios.</p>
