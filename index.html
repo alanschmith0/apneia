@@ -144,6 +144,13 @@ header h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01e
                background: var(--soft); color: var(--accent); }
 .facts .acts { padding: 10px 0 2px; }
 .acts .wide { grid-column: 1 / -1; }
+/* WhatsApp: botão verde à direita, alinhado com os botões de baixo */
+.endrow { display: flex; align-items: flex-end; gap: 10px; }
+.endrow .lines { flex: 1; min-width: 0; }
+.wpp { flex: none; display: flex; align-items: center; gap: 6px; border: none; border-radius: 10px; padding: 7px 12px;
+       background: #1E9E50; color: #FFFFFF; font-weight: 800; font-size: 15px; letter-spacing: 0.02em; margin-bottom: 2px; }
+.wpp svg { width: 20px; height: 20px; }
+.facts .endrow { margin-top: 8px; justify-content: flex-end; }
 .acts button:disabled { opacity: 0.4; }
 .facts .picbar { margin: -4px -6px 4px -14px; }
 .ownhead .nav { margin-top: 10px; }
@@ -298,7 +305,7 @@ html.locked #lock { display: block; }
     <label>Procurar em <select id="scope"></select></label>
   </div>
   <button class="big secondary small" id="btnAll" data-tab="foto">Ver todas as fotos</button>
-  <div class="filters">
+  <div class="filters" id="qlRow">
     <label>Quadra <input id="fQd" autocomplete="off" autocapitalize="characters" placeholder="ex: 12"></label>
     <label>Lote <input id="fLt" autocomplete="off" autocapitalize="characters" placeholder="ex: 5"></label>
   </div>
@@ -336,6 +343,7 @@ html.locked #lock { display: block; }
         <option value="0.1">± 10%</option><option value="0.2">± 20%</option>
       </select></label>
     </div>
+    <div class="qlslot" data-tab="foto"></div>
     <button class="big primary" id="btnCam">Fotografar fachada</button>
     <button class="big secondary" id="btnAlbum">Escolher do álbum</button>
   </div>
@@ -351,6 +359,7 @@ html.locked #lock { display: block; }
         <option value="0.1">± 10%</option><option value="0.2">± 20%</option>
       </select></label>
     </div>
+    <div class="qlslot" data-tab="area"></div>
     <button class="big primary" id="btnArea">Buscar por metragem</button>
   </div>
 
@@ -366,6 +375,7 @@ html.locked #lock { display: block; }
       <label>Área total (m²) <input id="nAt" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
       <label>Área construída (m²) <input id="nAc" inputmode="decimal" placeholder="± 5%" autocomplete="off"></label>
     </div>
+    <div class="qlslot" data-tab="nome"></div>
     <p class="note">Preencha pelo menos um campo. A inscrição procura em todos os condomínios.</p>
     <button class="big primary" id="btnNome">Buscar</button>
   </div>

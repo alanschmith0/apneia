@@ -107,6 +107,7 @@ const posText = (it) => (it.pos ? (core.isCorner(it) ? "Esquina" : "Centro") : "
 const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
 const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const ICON_V = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const ICON_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.8 6.6l8.2 6.4 8.2-6.4"/></svg>';
 const ICON_DL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 20h14"/></svg>';
 
 // ------------------------------------------------------------ "Você tem certeza?" no meio da tela
@@ -439,14 +440,19 @@ function lotCard(lot, i, ctx) {
   add(it.doc ? `CPF/CNPJ: ${fmtDoc(it.doc)}` : "");
   add([lot.pack.header.condo, lot.dist != null ? fmtDist(lot.dist) : ""].filter(Boolean).join(", "));
   add(it.end, true);
-  add(it.oc ? it.oc.charAt(0) + it.oc.slice(1).toLowerCase() : "", true);
+  // daqui em diante as linhas ficam à esquerda e o botão WPP encosta à direita, logo acima dos botões
+  const endrow = el("div", "endrow"), lines = el("div", "lines");
+  endrow.append(lines, wppButton(lot));
+  meta.append(endrow);
+  const addEnd = (txt) => { if (txt) lines.append(el("div", "line muted", txt)); };
+  addEnd(it.oc ? it.oc.charAt(0) + it.oc.slice(1).toLowerCase() : "");
   if (ctx.mode === "foto") {
     const hi = lot.fineHit ?? lot.hit;
     const by = hi === -1 ? " · pelo seu exemplo" : (lot.photos.length > 1 && lot.pack.header.items[hi] && lot.pack.header.items[hi].sec ? " · pela 2ª foto" : "");
-    add(`Semelhança ${Math.round((lot.score ?? lot.sim) * 100)}${by}`, true);
+    addEnd(`Semelhança ${Math.round((lot.score ?? lot.sim) * 100)}${by}`);
   } else if (ctx.mode === "area") {
-    add(lot.diff === 0 ? "Metragem igual" : (lot.diff < 0.001 ? "Diferença menor que 0,1%"
-      : `Diferença de ${(lot.diff * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`), true);
+    addEnd(lot.diff === 0 ? "Metragem igual" : (lot.diff < 0.001 ? "Diferença menor que 0,1%"
+      : `Diferença de ${(lot.diff * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`));
   }
   const acts = el("div", "acts");
   const b1 = el("button", "", "Copiar inscrição");
@@ -816,6 +822,9 @@ function factsBox(lot, urls, all, withActions) {
     box.append(d);
   }
   if (withActions) {
+    const er = el("div", "endrow");
+    er.append(wppButton(lot));
+    box.append(er);
     const acts = el("div", "acts");
     const b1 = el("button", "", "Copiar inscrição");
     b1.onclick = () => copyInsc(lot.insc);
@@ -916,6 +925,10 @@ function openInfo(lot) {
   const ov = openOverlay(`Imóvel ${lot.insc}`);
   ov.body.append(factsBox(lot, ov.urls, true));
   const others = ownerLots(lot.item).length - 1;
+  const er = el("div", "endrow");
+  er.style.justifyContent = "flex-end";
+  er.append(wppButton(lot));
+  ov.body.append(er);
   const nav = el("div", "nav");
   const b1 = el("button", "main", "Copiar inscrição");
   b1.onclick = () => copyInsc(lot.insc);
@@ -948,6 +961,42 @@ function dataLines(lot) {
   ];
 }
 const copyData = (lot) => copyText(dataLines(lot).join("\n"), "Dados do imóvel copiados");
+
+// ------------------------------------------------------------ mensagem de abordagem (WhatsApp)
+const LINKING = new Set(["do", "da", "de", "dos", "das", "e", "d", "du", "di"]);
+function titleCase(txt) {
+  return String(txt || "").toLowerCase().split(/(\s+|-)/).map((w, i) => {
+    if (!w.trim() || w === "-") return w;
+    if (i > 0 && LINKING.has(w)) return w;                 // palavras de ligação ficam minúsculas
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join("");
+}
+function firstName(nome) {
+  const w = String(nome || "").trim().split(/\s+/)[0] || "";
+  return w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : "";
+}
+function wppMessage(lot) {
+  const nome = firstName(lot.item.nome);
+  return [
+    nome ? `Olá, falo com ${nome}?` : "Olá, tudo bem?",
+    "",
+    `Sobre uma casa à venda no ${titleCase(lot.pack.header.condo)}.`,
+    "",
+    "Caso você seja a pessoa responsável, podemos trabalhar a venda de seu imóvel a partir de nossa imobiliária?",
+    "",
+    "Sou especialista em imóveis de alto padrão em Goiânia.",
+    "",
+    "George Queiroz,",
+    "Adão AlphaMall.",
+  ].join("\n");
+}
+function wppButton(lot) {
+  const b = el("button", "wpp");
+  b.innerHTML = ICON_MAIL + "<span>WPP</span>";
+  b.setAttribute("aria-label", "Copiar mensagem para o WhatsApp");
+  b.onclick = () => copyText(wppMessage(lot), "Mensagem copiada. Cole no WhatsApp.");
+  return b;
+}
 
 // localização do lote (centro do PIN) com links do Google Maps e do Waze, para colar no WhatsApp
 function copyLocation(lot) {
@@ -1303,6 +1352,8 @@ function setTab(t) {
     $("panel-" + k).hidden = t !== k;
   }
   $("btnAll").hidden = t !== "foto";
+  const slot = document.querySelector(`.qlslot[data-tab="${t}"]`);
+  if (slot && $("qlRow").parentNode !== slot) slot.append($("qlRow"));
   store("tab", t);
 }
 for (const k of TABS) $("tab-" + k).onclick = () => setTab(k);
