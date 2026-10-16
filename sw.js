@@ -1,5 +1,5 @@
 // Guarda o app e o motor de análise para funcionar sem internet.
-const CACHE = "apneia-v11";   // só mexe nos caches "apneia-": o Projeto 1 (lobomau-) fica intocado
+const CACHE = "apneia-v12";   // só mexe nos caches "apneia-": o Projeto 1 (lobomau-) fica intocado
 const CORE = ["./", "./index.html", "./core.js", "./app.js", "./manifest.webmanifest",
               "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 

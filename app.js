@@ -978,16 +978,13 @@ function firstName(nome) {
 function wppMessage(lot) {
   const nome = firstName(lot.item.nome);
   return [
-    nome ? `Olá, falo com ${nome}?` : "Olá, tudo bem?",
+    "Olá! Sou George Queiroz, especialista em imóveis de Alto Padrão em Goiânia.",
     "",
-    `Sobre uma casa à venda no ${titleCase(lot.pack.header.condo)}.`,
+    nome ? `Por gentileza, falo com ${nome}?` : "Por gentileza, falo com o(a) proprietário(a)?",
     "",
-    "Caso você seja a pessoa responsável, podemos trabalhar a venda de seu imóvel a partir de nossa imobiliária?",
+    `Se sim, gostaria de ajudar você a vender seu imóvel no ${titleCase(lot.pack.header.condo)}.`,
     "",
-    "Sou especialista em imóveis de alto padrão em Goiânia.",
-    "",
-    "George Queiroz,",
-    "Adão AlphaMall.",
+    "Posso trabalhar a venda do seu imóvel pela nossa imobiliária Adão AlphaMall?",
   ].join("\n");
 }
 function wppButton(lot) {
